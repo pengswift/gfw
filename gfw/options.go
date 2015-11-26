@@ -58,6 +58,7 @@ func NewOptions() *Options {
 		os.Exit(1)
 	}
 
+	// 加载日志配置
 	l.LoadConfiguration(logPath)
 
 	return &Options{

@@ -1,6 +1,7 @@
 package gfw
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 const maxTimeout = time.Hour
 
 var heartbeatBytes = []byte("_heartbeat_")
-var okBytes = []byte("OK")
 
 type protocolV1 struct {
 	ctx *context
@@ -82,22 +82,81 @@ func (p *protocolV1) IOLoop(conn net.Conn) error {
 }
 
 func (p *protocolV1) messagePump(client *clientV1, startedChan chan bool) {
+	var err error
+	var buf bytes.Buffer
+	var clientMsgChan chan *Message
+
+	var flusherChan <-chan time.Time
+
+	outputBufferTicker := time.NewTicker(client.OutputBufferTimeout)
+	heartbeatTicker := time.NewTicker(client.HeartbeatInterval)
+	heartbeatChan := heartbeatTicker.C
+	msgTimeout := client.MsgTimeout
+
+	flushed := true
 	// 准备
 	close(startedChan)
 	for {
 
+		if !client.IsReadyForMessages() {
+			clientMsgChan = nil
+			flusherChan = nil
+
+			client.Lock()
+			err = client.Flush()
+			client.Unlock()
+			if err != nil {
+				goto exit
+			}
+			flushed = true
+		} else if flushed {
+			clientMsgChan = client.MsgChan
+			flusherChan = nil
+		} else {
+			clientMsgChan = client.MsgChan
+			flusherChan = outputBufferTicker.C
+		}
+
 		select {
+		case <-flusherChan:
+			client.Lock()
+			err = client.Flush()
+			client.Unlock()
+			if err != nil {
+				goto exit
+			}
+			flushed = true
+		case <-client.ReadyStateChan:
+		case <-heartbeatChan:
+			err := p.Send(client, int32(onepiece.NetMsgID_HEART_BEAT), heartbeatBytes)
+			if err != nil {
+				goto exit
+			}
+		case msg, ok := <-clientMsgChan:
+			if !ok {
+				goto exit
+			}
+
+			if msg.ID < 100 {
+				err = fmt.Errorf("msgid < 100 kill self")
+				break
+			}
+
+			err := p.Send(client, msg.ID, msg.Body)
+			if err != nil {
+				goto exit
+			}
+			flushed = false
 		case <-client.ExitChan:
 			goto exit
 		}
-
 	}
 
 exit:
 	p.ctx.gfw.Info("PROTOCOL(V1): [%s] exiting messagePump", client)
-	//if err != nil {
-	//	p.ctx.gfw.Info("PROTOCOL(V1): [%s] messagePump error - %s", client, err)
-	//}
+	if err != nil {
+		p.ctx.gfw.Info("PROTOCOL(V1): [%s] messagePump error - %s", client, err)
+	}
 }
 
 func (p *protocolV1) Exec(client *clientV1) (int32, []byte, error) {

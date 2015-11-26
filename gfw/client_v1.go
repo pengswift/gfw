@@ -12,9 +12,10 @@ const defaultBufferSize = 16 * 1024
 
 const (
 	stateInit = iota
-	stateLogind
+	stateLogined
 	stateEncrypted
-	stateLoginWorlded
+	statePlanetLogined
+	statePlanetLoginout
 	stateClosing
 )
 
@@ -41,8 +42,9 @@ type clientV1 struct {
 	ReadyStateChan chan int
 	ExitChan       chan int
 
-	ClientID string
 	Hostname string
+
+	MsgChan chan *Message
 
 	// re-usable buffer for reading the 4-byte lengths off the wire
 	lenBuf   [4]byte
@@ -68,7 +70,7 @@ func newClientV1(id int64, conn net.Conn, ctx *context) *clientV1 {
 		OutputBufferSize:    defaultBufferSize,
 		OutputBufferTimeout: 250 * time.Millisecond,
 
-		// TODO
+		// TODO  异步发送消息的 timeout
 		MsgTimeout: ctx.gfw.getOpts().MsgTimeout,
 
 		ReadyStateChan: make(chan int, 1),
@@ -76,8 +78,9 @@ func newClientV1(id int64, conn net.Conn, ctx *context) *clientV1 {
 		ConnectTime:    time.Now(),
 		State:          stateInit,
 
-		ClientID: identifier,
 		Hostname: identifier,
+
+		MsgChan: make(chan *Message, 1),
 
 		HeartbeatInterval: ctx.gfw.getOpts().ClientTimeout / 2,
 	}
@@ -89,12 +92,31 @@ func (c *clientV1) String() string {
 	return c.RemoteAddr().String()
 }
 
+func (c *clientV1) IsReadyForMessages() bool {
+	// 登陆到星球后，方可回传消息
+	if atomic.LoadInt32(&c.State) == statePlanetLogined {
+		return true
+	}
+	return false
+}
+
+func (c *clientV1) tryUpdateReadState() {
+	select {
+	case c.ReadyStateChan <- 1:
+	default:
+	}
+}
+
 func (c *clientV1) StartClose() {
 	atomic.StoreInt32(&c.State, stateClosing)
 }
 
 func (c *clientV1) Pause() {
+	c.tryUpdateReadState()
+}
 
+func (c *clientV1) UnPause() {
+	c.tryUpdateReadState()
 }
 
 // TODO 此处代议， 心跳周期内是否有效
