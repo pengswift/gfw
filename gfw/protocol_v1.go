@@ -1,7 +1,6 @@
 package gfw
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -83,7 +82,6 @@ func (p *protocolV1) IOLoop(conn net.Conn) error {
 
 func (p *protocolV1) messagePump(client *clientV1, startedChan chan bool) {
 	var err error
-	var buf bytes.Buffer
 	var clientMsgChan chan *Message
 
 	var flusherChan <-chan time.Time
@@ -91,7 +89,6 @@ func (p *protocolV1) messagePump(client *clientV1, startedChan chan bool) {
 	outputBufferTicker := time.NewTicker(client.OutputBufferTimeout)
 	heartbeatTicker := time.NewTicker(client.HeartbeatInterval)
 	heartbeatChan := heartbeatTicker.C
-	msgTimeout := client.MsgTimeout
 
 	flushed := true
 	// 准备
