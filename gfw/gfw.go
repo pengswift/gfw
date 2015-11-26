@@ -69,35 +69,35 @@ func (g *GFW) Debug(f string, args ...interface{}) {
 	if g.getOpts().Logger == nil {
 		return
 	}
-	g.getOpts().Logger.Debug(f, args)
+	g.getOpts().Logger.Debug(f, args...)
 }
 
 func (g *GFW) Error(f string, args ...interface{}) {
 	if g.getOpts().Logger == nil {
 		return
 	}
-	g.getOpts().Logger.Error(f, args)
+	g.getOpts().Logger.Error(f, args...)
 }
 
 func (g *GFW) Info(f string, args ...interface{}) {
 	if g.getOpts().Logger == nil {
 		return
 	}
-	g.getOpts().Logger.Info(f, args)
+	g.getOpts().Logger.Info(f, args...)
 }
 
 func (g *GFW) Warn(f string, args ...interface{}) {
 	if g.getOpts().Logger == nil {
 		return
 	}
-	g.getOpts().Logger.Warn(f, args)
+	g.getOpts().Logger.Warn(f, args...)
 }
 
 func (g *GFW) Fatal(f string, args ...interface{}) {
 	if g.getOpts().Logger == nil {
 		return
 	}
-	g.getOpts().Logger.Fatal(f, args)
+	g.getOpts().Logger.Fatal(f, args...)
 }
 
 func (g *GFW) getOpts() *Options {
