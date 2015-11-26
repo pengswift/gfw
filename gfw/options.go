@@ -21,6 +21,7 @@ type Options struct {
 	DataPath string `flag"data-path"`
 
 	// msg and command options
+	MsgTimeout    time.Duration `flag:"msg-timeout" arg:"1ms"`
 	ClientTimeout time.Duration
 
 	Logger logger.Logger
