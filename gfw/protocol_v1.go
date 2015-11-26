@@ -41,6 +41,7 @@ func (p *protocolV1) IOLoop(conn net.Conn) error {
 		}
 
 		msgid, response, err := p.Exec(client)
+
 		if err != nil {
 			ctx := ""
 			if parentErr := err.(protocol.ChildErr).Parent(); parentErr != nil {
@@ -65,6 +66,7 @@ func (p *protocolV1) IOLoop(conn net.Conn) error {
 		}
 
 		if response != nil {
+
 			err = p.Send(client, msgid, response)
 			if err != nil {
 				err = fmt.Errorf("failed to send response - %s", err)
@@ -230,10 +232,7 @@ func (p *protocolV1) Send(client *clientV1, frameType int32, data []byte) error 
 		return err
 	}
 
-	// TODO 此处代议
-	if frameType == int32(onepiece.NetMsgID_ERROR) {
-		err = client.Flush()
-	}
+	err = client.Flush()
 
 	client.Unlock()
 
