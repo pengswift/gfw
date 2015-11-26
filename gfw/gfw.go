@@ -149,7 +149,7 @@ func (g *GFW) Main() {
 	}
 	g.Lock()
 	g.tcpListener = tcpListener
-	g.Lock()
+	g.UnLock()
 	tcpServer := &tcpServer{ctx: ctx}
 	g.waitGroup.Wrap(func() {
 		protocol.TCPServer(g.tcpListener, tcpServer, g.getOpts().Logger)
